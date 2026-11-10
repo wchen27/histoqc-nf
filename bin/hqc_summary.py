@@ -29,10 +29,12 @@ def number(value):
         v = float(value)
     except (TypeError, ValueError):
         return np.nan
-    return v if np.isfinite(v) else np.nan
+    return v if np.isfinite(v) and v != -100 else np.nan
 
 
 def faint_scores(values, direction):
+    if not np.isfinite(values).any():
+        return np.full(len(values), np.nan)
     median = np.nanmedian(values)
     spread = 1.4826 * np.nanmedian(np.abs(values - median))
     if not spread:
@@ -51,9 +53,11 @@ def review_section(metric, rows, values, label, order):
     return f"<h3>{html.escape(metric)}: {label}</h3><div class=grid>{''.join(cards)}</div>"
 
 
-def main(samplesheet, tsv_dir, jpg_dir, out_dir):
+def main(samplesheet, tsv_dir, jpg_dir, out_dir, limit="-1"):
     with open(samplesheet, newline="") as f:
         sheet = list(csv.DictReader(f))
+    if int(limit) > 0:
+        sheet = sheet[: int(limit)]
     labels = {r["name"]: r.get("stain_label") or "" for r in sheet}
 
     found = {}
@@ -93,7 +97,7 @@ def main(samplesheet, tsv_dir, jpg_dir, out_dir):
     ]
     for m, _ in METRICS:
         v = table[m]
-        p = " ".join(f"{x:.4g}" for x in np.nanpercentile(v, [1, 5, 25, 50, 75, 95, 99]))
+        p = " ".join(f"{x:.4g}" for x in np.nanpercentile(v, [1, 5, 25, 50, 75, 95, 99])) if np.isfinite(v).any() else "no values"
         lines.append(f"{m}: {p} | {int(np.nansum(faint[m] > 2))}, {int(np.nansum(faint[m] > 3))}")
     text = "\n".join(lines) + "\n"
     with open(os.path.join(out_dir, "histoqc_summary.txt"), "w") as f:
@@ -133,6 +137,6 @@ def main(samplesheet, tsv_dir, jpg_dir, out_dir):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
-        sys.exit("usage: hqc_summary.py <samplesheet.csv> <tsv_dir> <jpg_dir> <output_dir>")
+    if len(sys.argv) not in (5, 6):
+        sys.exit("usage: hqc_summary.py <samplesheet.csv> <tsv_dir> <jpg_dir> <output_dir> [limit]")
     main(*sys.argv[1:])

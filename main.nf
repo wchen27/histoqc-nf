@@ -21,7 +21,9 @@ process HISTOQC {
 
     script:
     """
-    timeout ${params.timeout_seconds} run-histoqc "${slide}" qc --nprocesses ${task.cpus}
+    histoqc.config --show v2.1 > no_blur.ini
+    sed -i '/^[[:space:]]*BlurDetectionModule.identifyBlurryRegions[[:space:]]*\$/d' no_blur.ini
+    timeout ${params.timeout_seconds} run-histoqc "${slide}" qc --config "\$PWD/no_blur.ini" --nprocesses ${task.cpus}
     hqc_row.py qc "${name}" .
     mv qc "${name}_histoqc"
     """
@@ -44,7 +46,7 @@ process HISTOQC_SUMMARY {
 
     script:
     """
-    hqc_summary.py "${samplesheet}" tsv jpg .
+    hqc_summary.py "${samplesheet}" tsv jpg . ${params.limit}
     """
 }
 
