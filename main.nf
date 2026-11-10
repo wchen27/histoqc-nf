@@ -55,7 +55,8 @@ workflow {
     rows = Channel.fromPath(params.samplesheet, checkIfExists: true)
         .splitCsv(header: true)
         .map { row -> tuple(row.name, file(row.Address)) }
-    slides = params.limit > 0 ? rows.take(params.limit as int) : rows
+    def limit = params.limit.toString().toInteger()
+    slides = limit > 0 ? rows.take(limit) : rows
 
     HISTOQC(slides)
     HISTOQC_SUMMARY(
